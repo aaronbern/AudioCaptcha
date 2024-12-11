@@ -23,7 +23,7 @@ local audioCaptchaFiles = {
     "kj8ocxuk", "l5szzlbi", "m08m7x31", "n9en1v08", "nhjdgkw3",
     "o0np4o0j", "odmoc5ur", "oss0zea3", "p4b5rdg9", "pogya4ip",
     "psitxz2f", "q8dgcft4", "qmmhp3zb", "r392m8sv", "rqq0xgd9",
-    "s3my09ks", "si6i7aa4", "suxf4ybp", "tgc7c3gw", "twcilgd5",
+    "si6i7aa4", "suxf4ybp", "tgc7c3gw", "twcilgd5",
     "w2ng4tgn", "x41w4993", "ybdmp2ag", "yfylw7yi", "zi2xv2sr",
 }
 
@@ -88,15 +88,11 @@ function addon:ShowAudioCaptchaFrame()
         cancelButton:SetScript("OnClick", function()
             captchaFrame:Hide()
             lastInteractionType = nil
-            print("|cffff0000[Captcha]|r You canceled the CAPTCHA.")
         end)
 
         -- Keybinding
         editBox:SetScript("OnEnterPressed", function()
             okButton:Click()
-        end)
-        editBox:SetScript("OnEscapePressed", function()
-            cancelButton:Click()
         end)
 
         StaticPopupDialogs["AUDIO_CAPTCHA_WRONG"] = {
@@ -104,7 +100,6 @@ function addon:ShowAudioCaptchaFrame()
             button1 = "OK",
             timeout = 0,
             whileDead = true,
-            hideOnEscape = true,
             preferredIndex = 3,
             OnAccept = function()
                 editBox:SetText("")
@@ -123,7 +118,6 @@ end
 function addon:OnEvent(event, ...)
     local currentTime = GetTime()
     if currentTime - lastCaptchaSolveTime < captchaGracePeriod then
-        print("|cffffd200[Captcha]|r You have free access during the grace period.")
         return
     end
 
