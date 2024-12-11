@@ -1,0 +1,9 @@
+## Interface: 100105
+## Title: Flight Audio Captcha
+## Author: Your Name
+## Version: 1.15.5.57979
+## Notes: Adds an audio CAPTCHA to block access to the mailbox and flight master until solved.
+## DefaultState: Enabled
+
+# Core addon file
+FlightAudioCaptcha.lua
