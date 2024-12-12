@@ -1,3 +1,4 @@
+-- Local addon initialization
 local ADDON_NAME, ns = ...
 
 local addon = CreateFrame("Frame")
@@ -8,25 +9,69 @@ addon:SetScript("OnEvent", function(self, event, ...)
     addon:OnEvent(event, ...)
 end)
 
+-- Variables to manage captcha state
 local captchaAnswer = nil
 local captchaFrame = nil
 local lastInteractionType = nil
 local lastCaptchaSolveTime = 0
 local captchaGracePeriod = 30 
+local isCaptchaActive = false -- Lock Mechanism Flag
 
+-- List of audio captcha files
 local audioCaptchaFiles = {
-    "0cpepi2d", "0t6tgpzv", "1qvpwr14", "30n7x4hg", "382jgc2x",
-    "3ah7mfe2", "3y0ie7wa", "4rk5361u", "51zv5xz0", "5dz8cc7f",
-    "5e47oyy8", "7sq5ywsa", "93upio4c", "96adzqn3", "97nh5nwd",
-    "cdhzsy41", "cdw69r99", "e43pbrcn", "ennn2d8l", "f0nnpsad",
-    "i0v6tc1o", "i2t0g03u", "jaamdhx3", "jcsdefbd", "k4fq0449",
-    "kj8ocxuk", "l5szzlbi", "m08m7x31", "n9en1v08", "nhjdgkw3",
-    "o0np4o0j", "odmoc5ur", "oss0zea3", "p4b5rdg9", "pogya4ip",
-    "psitxz2f", "q8dgcft4", "qmmhp3zb", "r392m8sv", "rqq0xgd9",
-    "si6i7aa4", "suxf4ybp", "tgc7c3gw", "twcilgd5",
-    "w2ng4tgn", "x41w4993", "ybdmp2ag", "yfylw7yi", "zi2xv2sr",
+    "1j5w32m2",
+    "1kxd2smd",
+    "1xn2dzzg",
+    "45yp26yk",
+    "4gdkf1z2",
+    "4wi2yx1c",
+    "7bouzypr",
+    "7ureikaj",
+    "89friex6",
+    "8bso6p56",
+    "8kgos332",
+    "8wy5jc9q",
+    "a207l70h",
+    "a9jpmdmo",
+    "bgcxeshp",
+    "bnzax5eh",
+    "cffevbcl",
+    "elbk9ru1",
+    "fd9stqf3",
+    "gdcig702",
+    "gt8i5ouz",
+    "hd34385s",
+    "hhvd5rhc",
+    "i0zn9iof",
+    "jb4diicj",
+    "jf8eufju",
+    "jp5wqvyc",
+    "k0663j73",
+    "m511v0wm",
+    "mz7mhwap",
+    "mzwyra69",
+    "nueyhlp4",
+    "omyem3rq",
+    "ppakxmlb",
+    "r7jvlo7l",
+    "rsp53xs5",
+    "segnmnbb",
+    "t1dz9trp",
+    "tf928biq",
+    "tzn22fh2",
+    "ut0xeplj",
+    "v2dgatff",
+    "vh8iw4v4",
+    "vmftm9f0",
+    "vu4k8imb",
+    "whf87omi",
+    "y17flws5",
+    "y2oaoevv",
+    "yndhsg7i",
+    "zmfs3sl8"
 }
 
+-- Function to play the selected audio captcha
 local function PlayAudioCaptcha(answer)
     local filePath = "Interface\\AddOns\\FlightAudioCaptcha\\audio_captchas\\" .. answer .. ".wav"
     if not PlaySoundFile(filePath, "Master") then
@@ -34,12 +79,18 @@ local function PlayAudioCaptcha(answer)
     end
 end
 
+-- Function to create and display the captcha frame
 function addon:ShowAudioCaptchaFrame()
     if not captchaFrame then
+        -- Create the captcha frame
         captchaFrame = CreateFrame("Frame", "AudioCaptchaFrame", UIParent, "BackdropTemplate")
         captchaFrame:SetSize(400, 200)
         captchaFrame:SetPoint("CENTER")
         captchaFrame:SetFrameStrata("DIALOG")
+        captchaFrame:SetToplevel(true) -- Ensure the frame is on top
+        captchaFrame:SetClampedToScreen(true)
+        captchaFrame:SetMovable(false)
+        captchaFrame:EnableMouse(true)
         captchaFrame:SetBackdrop({
             bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
             edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -47,16 +98,19 @@ function addon:ShowAudioCaptchaFrame()
             insets = { left = 8, right = 8, top = 8, bottom = 8 }
         })
 
+        -- Title text
         local titleText = captchaFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
         titleText:SetPoint("TOP", 0, -16)
         titleText:SetText("Listen to the audio and type the answer!")
 
+        -- Edit box for user input
         local editBox = CreateFrame("EditBox", nil, captchaFrame, "InputBoxTemplate")
         editBox:SetSize(120, 20)
         editBox:SetPoint("CENTER", 0, -10)
         editBox:SetAutoFocus(true)
         captchaFrame.editBox = editBox
 
+        -- Play button to replay the captcha audio
         local playButton = CreateFrame("Button", nil, captchaFrame, "UIPanelButtonTemplate")
         playButton:SetSize(60, 20)
         playButton:SetPoint("BOTTOMLEFT", 10, 10)
@@ -65,6 +119,7 @@ function addon:ShowAudioCaptchaFrame()
             PlayAudioCaptcha(captchaAnswer)
         end)
 
+        -- OK button to submit the captcha answer
         local okButton = CreateFrame("Button", nil, captchaFrame, "UIPanelButtonTemplate")
         okButton:SetSize(60, 20)
         okButton:SetPoint("BOTTOMRIGHT", -10, 10)
@@ -74,6 +129,7 @@ function addon:ShowAudioCaptchaFrame()
             if userAnswer and userAnswer:lower() == captchaAnswer:lower() then
                 captchaFrame:Hide()
                 lastCaptchaSolveTime = GetTime() -- Update solve time
+                isCaptchaActive = false -- Release the lock
                 addon:ResumeInteraction()
                 print("|cffffd200[Captcha]|r Correct answer!")
             else
@@ -81,20 +137,39 @@ function addon:ShowAudioCaptchaFrame()
             end
         end)
 
+        -- Cancel button to abort the captcha
         local cancelButton = CreateFrame("Button", nil, captchaFrame, "UIPanelButtonTemplate")
         cancelButton:SetSize(60, 20)
         cancelButton:SetPoint("BOTTOM", 0, 10)
         cancelButton:SetText("Cancel")
         cancelButton:SetScript("OnClick", function()
             captchaFrame:Hide()
+
+            -- Do not re-show the original frame to prevent immediate reopening
+            -- Optionally, notify the user that they must solve the captcha to proceed
+            print("|cffffd200[Captcha]|r Captcha canceled. You must solve the captcha to interact again.")
+
+            isCaptchaActive = false -- Release the lock
             lastInteractionType = nil
         end)
 
-        -- Keybinding
+        -- Keybinding: Pressing Enter in the edit box triggers the OK button
         editBox:SetScript("OnEnterPressed", function()
             okButton:Click()
         end)
 
+        -- Handle Escape key to cancel the captcha via the editBox
+        editBox:SetScript("OnEscapePressed", function()
+            cancelButton:Click()
+        end)
+
+        -- Handle focus when the captcha frame is shown
+        captchaFrame:SetScript("OnShow", function(self)
+            -- Set focus to the editBox instead of using SetKeyboardFocus on the frame
+            self.editBox:SetFocus()
+        end)
+
+        -- Static popup dialog for wrong captcha answers
         StaticPopupDialogs["AUDIO_CAPTCHA_WRONG"] = {
             text = "Incorrect answer, please try again.",
             button1 = "OK",
@@ -108,16 +183,25 @@ function addon:ShowAudioCaptchaFrame()
         }
     end
 
+    -- Select a random captcha answer
     captchaAnswer = audioCaptchaFiles[math.random(#audioCaptchaFiles)]
     PlayAudioCaptcha(captchaAnswer)
     captchaFrame.editBox:SetText("")
     captchaFrame.editBox:SetFocus()
     captchaFrame:Show()
+
+    isCaptchaActive = true -- Activate the lock
 end
 
+-- Event handler function
 function addon:OnEvent(event, ...)
     local currentTime = GetTime()
     if currentTime - lastCaptchaSolveTime < captchaGracePeriod then
+        return
+    end
+
+    if isCaptchaActive then
+        -- Block further interactions while captcha is active
         return
     end
 
@@ -142,11 +226,12 @@ function addon:OnEvent(event, ...)
     end
 end
 
+-- Function to resume interaction after captcha is solved
 function addon:ResumeInteraction()
     if lastInteractionType == "taxi" then
-        print("|cffffd200[Captcha]|r Interact with the flight master again.")
+        print("|cffffd200[Captcha]|r You may now interact with the flight master.")
     elseif lastInteractionType == "mail" then
-        print("|cffffd200[Captcha]|r Interact with the mailbox again.")
+        print("|cffffd200[Captcha]|r You may now interact with the mailbox.")
     end
     lastInteractionType = nil
 end

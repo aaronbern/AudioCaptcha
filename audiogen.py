@@ -6,6 +6,7 @@ def generate_audio_captcha(output_dir, num_files=50, sequence_length=8):
     """
     Generates audio CAPTCHA sequences using gTTS and saves them as .wav files.
     Applies a very slow playback effect and introduces gaps between letters to make it more annoying.
+    Increases the audio volume by 25%.
 
     :param output_dir: Directory to save the audio files.
     :param num_files: Number of CAPTCHA files to generate.
@@ -33,13 +34,19 @@ def generate_audio_captcha(output_dir, num_files=50, sequence_length=8):
         # Save as MP3 first
         tts.save(temp_mp3_path)
 
-        # Apply a very slow playback effect using chained atempo filters
-        os.system(f"ffmpeg -i {temp_mp3_path} -af \"atempo=0.5,atempo=0.5\" -ar 44100 -ac 2 {audio_output_path}")
+        # Apply a very slow playback effect and increase volume by 25%
+        # The volume filter is set to 1.25 to make the audio 25% louder
+        ffmpeg_command = (
+            f"ffmpeg -i {temp_mp3_path} "
+            f"-af \"volume=1.5,atempo=0.5,atempo=0.5\" "
+            f"-ar 44100 -ac 2 {audio_output_path}"
+        )
+        os.system(ffmpeg_command)
 
         # Clean up the temporary MP3 file
         os.remove(temp_mp3_path)
 
-        print(f"Generated with slow effect and explicit spacing: {audio_output_path}")
+        print(f"Generated with slow effect, increased volume, and explicit spacing: {audio_output_path}")
 
 if __name__ == "__main__":
     output_directory = "./audio_captchas"
